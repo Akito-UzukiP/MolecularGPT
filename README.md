@@ -4,8 +4,10 @@
 TODO
 ![Alt text](image.png)
 ### 2. 安装
-- 直接使用pip安装即可
+- 克隆本repo后直接使用pip安装即可
 ```bash
+git clone https://github.com/Akito-UzukiP/MolecularGPT.git
+cd MolecularGPT
 pip install -r requirements.txt
 ```
 - 需要设置openai的api key环境变量，或者直接在代码里设置
