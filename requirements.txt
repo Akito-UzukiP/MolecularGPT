@@ -1,0 +1,7 @@
+torch == 1.8
+openai
+rdkit
+torchdrug
+gradio
+urllib3==1.25
+torchdrug
