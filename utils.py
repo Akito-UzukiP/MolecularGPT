@@ -51,7 +51,8 @@ def _get_compound_properties(query, query_type='formula'):
     props = []
     for mole in data['PC_Compounds']:
         prop_dict = {}
-        prop_dict['cid'] = mole['id']['id']['cid']
+        if mole['id'].get('id') is not None:
+            prop_dict['cid'] = mole['id']['id']['cid']
         for prop in data['PC_Compounds'][0]['props']:
             prop_dict[prop['urn']['label']] = prop['value']
         props.append(prop_dict)

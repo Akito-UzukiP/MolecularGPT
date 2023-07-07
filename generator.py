@@ -20,7 +20,7 @@ def GCPN_simple_molecule_generation(num=1):
                                 max_node=38, criterion="nll")
     optimizer = optim.Adam(task.parameters(), lr = 1e-3)
     solver = core.Engine(task, dataset, None, None, optimizer,
-                            gpus=(0,), batch_size=128, log_interval=10)
+                             batch_size=128, log_interval=10)
     solver.load("./torchdrug/gcpn_zinc250k_5epoch.pkl")
     results = task.generate(num_sample=num, max_resample=10)
     return results.to_smiles()
@@ -37,7 +37,7 @@ def GCPN_hydrophobic_molecule_generation(num=1):
                                 max_node=38, criterion="nll")
     optimizer = optim.Adam(task.parameters(), lr = 1e-3)
     solver = core.Engine(task, dataset, None, None, optimizer,
-                            gpus=(0,), batch_size=128, log_interval=10)
+                             batch_size=128, log_interval=10)
     solver.load("./torchdrug/gcpn_zinc250k_rl_1epoch.pkl")
     results = task.generate(num_sample=num, max_resample=10)
     return results.to_smiles()
