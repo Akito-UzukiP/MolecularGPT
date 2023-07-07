@@ -10,7 +10,7 @@ git clone https://github.com/Akito-UzukiP/MolecularGPT.git
 cd MolecularGPT
 pip install -r requirements.txt
 ```
-- 需要设置openai的api key环境变量，或者直接在代码里设置
+- 需要设置openai的api key环境变量，或者直接在代码里设置，以下代码是通过PowerShell命令行设置API_KEY，将sk-******更换成你的API KEY
 ```PowerShell
 [Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-******", "User")
 ```
