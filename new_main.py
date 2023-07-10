@@ -100,7 +100,7 @@ global_info = {
     "mol_image": "",
     "xyz_file": {},
     "molecule_info": {},
-    "molecule_evaluate": {},
+    "molecule_evaluate": "",
     "function_response": ""
 }
 
@@ -191,7 +191,13 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            dbc.Card(id='chat-history', children=[], className='mt-4', style={'height': '60vh', 'overflowY': 'scroll'}),
+            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '800px', 'width':'800px', 'border': 'solid grey 3px', 'overflowY': 'scroll'}),
+            dbc.FormGroup([
+                dbc.Label('用户输入', className='form-label'),
+                dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'800px', 'height': '100px'}),
+                dbc.FormText('请输入你的查询.', color='secondary'),
+                ]),
+            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
         ], width=6),
         dbc.Col([
             dcc.Loading(
@@ -201,7 +207,7 @@ app.layout = dbc.Container([
                     id='mol-Speck',
                     data = xyz_reader.read_xyz('./assets/test.xyz'),
                     view={
-                        'resolution': 400,
+                        'resolution': 800,
                         'ao': 0.1,
                         'outline': 1,
                         'atomScale': 0.25,
@@ -210,9 +216,9 @@ app.layout = dbc.Container([
                         'zoom' : 0.05
                     },
                     style={
-                        'height': '600px',
-                        'width': '400px',
-                        'position': 'relative'
+                        'height': '800px',
+                        'width': '800px',
+                        'border': 'solid grey 3px'
                     }
                 )
             ),
@@ -227,25 +233,19 @@ app.layout = dbc.Container([
                             # Add more styles here
                         ],
                         value='style1'  # Default value
-                    )
+                    ),
+                    dbc.FormGroup([
+                        dbc.Label("properties", className="form-label", style={'margin-top': '10px'}),
+                        dbc.Textarea(
+                            id="molecule-properties",
+                            value="",
+                            style={'height': '150px'},
+                            readOnly=True,
+                        )
+                    ])
                 ], width=6)
             ]),
-            dbc.FormGroup([
-                dbc.Label("SMILES String", className="form-label"),
-                dbc.Input(id="smiles-input", value=""),
-                dbc.Button("Submit", id="submit-smiles-button", n_clicks=0, color="primary", className="mt-2"),
-            ]),
 
-        ], width=6)
-    ]),
-    dbc.Row([
-        dbc.Col([
-            dbc.FormGroup([
-                dbc.Label('用户输入', className='form-label'),
-                dbc.Textarea(id='input-text', className='form-control', style={'height': '150px'}),
-                dbc.FormText('请输入你的查询.', color='secondary'),
-            ]),
-            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
         ], width=6)
     ]),
     dcc.Store(id='global-store',data=global_info)
@@ -260,7 +260,6 @@ app.layout = dbc.Container([
 @app.callback(
     Output('chat-history', 'children'),
     Output('global-store', 'data'),
-    Output('smile-input', 'value'),
     Input('submit-button', 'n_clicks'),
     State('input-text', 'value'),
     State('global-store', 'data')
@@ -283,13 +282,13 @@ def update_chat(n_clicks, input_text, global_store):
             chat_output.append(
                 dbc.Card([
                     dbc.CardBody([
-                        html.H5('User', className='card-title'),
-                        html.P(user_input[i], className='card-text'),
-                    ], className='card bg-light text-dark mb-2'),
+                        html.Img(src='./assets/jingtai.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
+                        html.P("   "+user_input[i], className='card-text'),
+                    ], className='card bg-light text-dark mb-2',style={'display': 'flex', 'flex-direction':'row',  'align-items': 'center'}),
                     dbc.CardBody([
-                        html.H5('Assistant', className='card-title'),
-                        html.P(bot_output[i], className='card-text'),
-                    ], className='card bg-primary text-white mb-2')
+                        html.Img(src='./assets/chatgpt.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
+                        html.P("   "+bot_output[i], className='card-text'),
+                    ], className='card bg-primary text-white mb-2',style={'display': 'flex','flex-direction':'row',  'align-items': 'center'})
                 ], className='mb-4')
             )
         #print(chat_output)
@@ -305,11 +304,11 @@ def update_chat(n_clicks, input_text, global_store):
 )
 def update_mol_speck(global_store, n_clicks,current_data):
     if n_clicks == 0:
-        return current_data, global_store["xyz_file"]["SMILES"]
+        return current_data
     print(global_store["xyz_file"])
     if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
-        return smiles_to_3d(global_store["xyz_file"]["SMILES"]), global_store["xyz_file"]["SMILES"]
-    return current_data, global_store["xyz_file"]["SMILES"]
+        return smiles_to_3d(global_store["xyz_file"]["SMILES"])
+    return current_data
 
 @app.callback(
     Output('mol-Speck', 'view'),
@@ -319,7 +318,7 @@ def update_speck_style(style_value):
     # Define different styles
     styles = {
         'style1': {
-            'resolution': 400,
+            'resolution': 800,
             'ao': 0.1,
             'outline': 1,
             'atomScale': 0.25,
@@ -328,7 +327,7 @@ def update_speck_style(style_value):
             'zoom' : 0.05
         },
         'style2': {
-            'resolution': 400,
+            'resolution': 800,
             'ao': 0.1,
             'outline': 0,
             'atomScale': 0.1,
@@ -338,7 +337,7 @@ def update_speck_style(style_value):
             'adomShade' : 1
         },
         'style3': {
-            'resolution': 400,
+            'resolution': 800,
             'ao': 0.1,
             'outline': 0,
             'atomScale': 0.8,
@@ -351,19 +350,12 @@ def update_speck_style(style_value):
 
     return styles[style_value]
 
-
 @app.callback(
-    Output('global-store', 'data'),  # Update the global store data
-    Input('submit-smiles-button', 'n_clicks'),  # Triggered by the submit button
-    State('smiles-input', 'value'),  # Get the value of the SMILES input
-    State('global-store', 'data')  # Get the current global store data
+    Output('molecule-properties', 'value'),
+    Input('global-store', 'data')
 )
-def update_smiles(n_clicks, smiles, global_store):
-    if n_clicks > 0:
-        global_store["xyz_file"] = {"SMILES": smiles}  # Update the SMILES string in the global store data
-        return global_store  # Return the updated global store data
-    return global_store  # If the submit button hasn't been clicked, return the current global store data
-
+def update_molecule_properties(global_store):
+    return global_store["molecule_evaluate"]
 
 # Run the app
 if __name__ == '__main__':

@@ -2,7 +2,6 @@ import openai
 import rdkit.Chem.Draw
 import rdkit.Chem.AllChem as Chem
 from openbabel import openbabel, pybel
-import gradio as gr
 import json
 import os
 import requests
