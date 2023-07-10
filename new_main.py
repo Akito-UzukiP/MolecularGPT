@@ -191,10 +191,11 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '800px', 'width':'800px', 'border': 'solid grey 3px', 'overflowY': 'scroll'}),
+            dashbio.Jsme(id = 'jsme', style={'width': '70vh', 'height': '30vh', 'border': 'solid grey 3px'}),
+            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '40vh', 'width':'70vh', 'border': 'solid grey 3px', 'overflowY': 'scroll'}),
             dbc.FormGroup([
                 dbc.Label('用户输入', className='form-label'),
-                dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'800px', 'height': '100px'}),
+                dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'70vh', 'height': '5vh'}),
                 dbc.FormText('请输入你的查询.', color='secondary'),
                 ]),
             dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
