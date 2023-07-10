@@ -5,3 +5,7 @@ torchdrug
 gradio
 urllib3==1.25
 torchdrug
+dash_bio
+dash
+dash_bootstrap_components=0.9
+openbabel
