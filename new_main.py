@@ -123,7 +123,7 @@ def chatbot(global_info):
         functions=functions,
         temperature = 1)
     response_message = completion['choices'][0]['message']
-    print(response_message)
+    #print(response_message)
     #如果有函数调用，调用函数，进行第二轮对话
     if response_message.get("function_call"):
         available_functions = {
@@ -134,7 +134,7 @@ def chatbot(global_info):
         function_name = response_message["function_call"]["name"]
         fuction_to_call = available_functions[function_name]
         function_args = json.loads(response_message["function_call"]["arguments"])
-        print(function_args)
+        #print(function_args)
         function_response = fuction_to_call(
             **function_args
         )
@@ -204,7 +204,6 @@ app.layout = dbc.Container([
                 type="cube",
                 children=dashbio.Speck(
                     id='mol-Speck',
-                    data=xyz_reader.read_xyz("./assets/test.xyz"),
                     view={
                         'resolution': 400,
                         'ao': 0.1,
@@ -213,7 +212,7 @@ app.layout = dbc.Container([
                         'relativeAtomScale': 0.33,
                         'bonds': True
                     },
-                    
+
                 )
             )
     ,
@@ -246,7 +245,7 @@ def update_chat(n_clicks, input_text, global_store):
                 user_input.append(message['content'])
             else:
                 bot_output.append(message['content'])
-        print(user_input, bot_output)
+        #print(user_input, bot_output)
         for i in range(len(user_input)):
             chat_output.append(
                 dbc.Card([
@@ -265,12 +264,12 @@ def update_chat(n_clicks, input_text, global_store):
     return [], global_store
 @app.callback(
     Output('mol-Speck', 'data'),
-    Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
+    Input('global-store', 'data')  # The data of mol-Speck is updated when the global store is updated
 )
 def update_mol_speck(global_store):
-    print(global_store['molecule_info'])
-    if global_store['molecule_info'] is not None and global_store["molecule_info"].get("SMILES"):
-        return smiles_to_3d(global_store["molecule_info"]["SMILES"], "./assets/test.xyz")
+    print(global_store["molecule_info"])
+    if global_store["molecule_info"] is not None and global_store["molecule_info"].get("SMILES"):
+        smiles_to_3d(global_store["molecule_info"]["SMILES"], "./assets/test.xyz")
     return xyz_reader.read_xyz("./assets/test.xyz")
 # Run the app
 if __name__ == '__main__':
