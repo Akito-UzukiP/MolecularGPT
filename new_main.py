@@ -215,7 +215,27 @@ app.layout = dbc.Container([
                         'position': 'relative'
                     }
                 )
-            )
+            ),
+            dbc.Row([
+                dbc.Col([
+                    dcc.Dropdown(
+                        id='speck-style-dropdown',
+                        options=[
+                            {'label': 'Style 1', 'value': 'style1'},
+                            {'label': 'Style 2', 'value': 'style2'},
+                            {'label': 'Style 3', 'value': 'style3'},
+                            # Add more styles here
+                        ],
+                        value='style1'  # Default value
+                    )
+                ], width=6)
+            ]),
+            dbc.FormGroup([
+                dbc.Label("SMILES String", className="form-label"),
+                dbc.Input(id="smiles-input", value=""),
+                dbc.Button("Submit", id="submit-smiles-button", n_clicks=0, color="primary", className="mt-2"),
+            ]),
+
         ], width=6)
     ]),
     dbc.Row([
@@ -240,6 +260,7 @@ app.layout = dbc.Container([
 @app.callback(
     Output('chat-history', 'children'),
     Output('global-store', 'data'),
+    Output('smile-input', 'value'),
     Input('submit-button', 'n_clicks'),
     State('input-text', 'value'),
     State('global-store', 'data')
@@ -274,6 +295,8 @@ def update_chat(n_clicks, input_text, global_store):
         #print(chat_output)
         return chat_output, datas
     return [], global_store
+
+
 @app.callback(
     Output('mol-Speck', 'data'),
     Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
@@ -282,11 +305,66 @@ def update_chat(n_clicks, input_text, global_store):
 )
 def update_mol_speck(global_store, n_clicks,current_data):
     if n_clicks == 0:
-        return current_data
+        return current_data, global_store["xyz_file"]["SMILES"]
     print(global_store["xyz_file"])
     if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
-        return smiles_to_3d(global_store["xyz_file"]["SMILES"])
-    return current_data
+        return smiles_to_3d(global_store["xyz_file"]["SMILES"]), global_store["xyz_file"]["SMILES"]
+    return current_data, global_store["xyz_file"]["SMILES"]
+
+@app.callback(
+    Output('mol-Speck', 'view'),
+    Input('speck-style-dropdown', 'value'),
+)
+def update_speck_style(style_value):
+    # Define different styles
+    styles = {
+        'style1': {
+            'resolution': 400,
+            'ao': 0.1,
+            'outline': 1,
+            'atomScale': 0.25,
+            'relativeAtomScale': 0.33,
+            'bonds': True,
+            'zoom' : 0.05
+        },
+        'style2': {
+            'resolution': 400,
+            'ao': 0.1,
+            'outline': 0,
+            'atomScale': 0.1,
+            'relativeAtomScale': 0.7,
+            'bonds': True,
+            'zoom' : 0.05,
+            'adomShade' : 1
+        },
+        'style3': {
+            'resolution': 400,
+            'ao': 0.1,
+            'outline': 0,
+            'atomScale': 0.8,
+            'relativeAtomScale': 0.9,
+            'bonds': False,
+            'zoom' : 0.05
+        }
+        # Add more styles here
+    }
+
+    return styles[style_value]
+
+
+@app.callback(
+    Output('global-store', 'data'),  # Update the global store data
+    Input('submit-smiles-button', 'n_clicks'),  # Triggered by the submit button
+    State('smiles-input', 'value'),  # Get the value of the SMILES input
+    State('global-store', 'data')  # Get the current global store data
+)
+def update_smiles(n_clicks, smiles, global_store):
+    if n_clicks > 0:
+        global_store["xyz_file"] = {"SMILES": smiles}  # Update the SMILES string in the global store data
+        return global_store  # Return the updated global store data
+    return global_store  # If the submit button hasn't been clicked, return the current global store data
+
+
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
