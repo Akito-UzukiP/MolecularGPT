@@ -127,7 +127,8 @@ def chatbot(input_text):
 
         print(function_response)
         #存储图片,function_response是PIl.Image对象
-        temp_history.append(response_message)  # extend conversation with assistant's reply
+        
+        temp_history.append(response_message)  
         temp_history.append(
             {
                 "role": "function",

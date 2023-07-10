@@ -1,10 +1,12 @@
 import openai
 import rdkit.Chem.Draw
-import rdkit.Chem as Chem
+import rdkit.Chem.AllChem as Chem
+from openbabel import openbabel, pybel
 import gradio as gr
 import json
 import os
 import requests
+from dash_bio.utils import xyz_reader
 from generator import GCPN_simple_molecule_generation,GCPN_hydrophobic_molecule_generation
 
 def display_mol(smiles):
@@ -73,27 +75,52 @@ def _get_compound_properties(query, query_type='formula'):
 # SMILES
 # Topological
 # Weight
-# ["Compound", "Compound Complexity", "Count", "Fingerprint", "IUPAC Name", "InChI", "InChiKey", "Log P", "Mass", "Molecular Formula", "Molecular Weight", "SMILES", "TOPOLOGICAL", "Weight", "ALL"]
-def get_compound_properties(query, query_type='formula',prop_type='Molecular Weight'):
+# ["Compound", "Compound Complexity", "Count", "Fingerprint", "IUPAC Name", "InChI", "InChiKey", "Log P", "Mass", "Molecular Formula", "Molecular Weight", "SMILES", "TOPOLOGICAL", "Weight"]
+def get_compound_properties(query, query_type='formula',prop_type=['SMILES']):
     props = _get_compound_properties(query, query_type)
     if props is None:
         return "No data found."
-    if prop_type == "ALL":
-        return props
     return_props = []
     for mole in props:
         prop_dicts = {}
         for i in mole:
-            if i == prop_type:
-                prop_dicts[i] = mole[i]
+            for j in prop_type:
+                if i == j:
+                    prop_dicts[i] = mole[i]
         return_props.append(prop_dicts)
     return return_props
+
+def interact_with_chatgpt(messages, functions, model="gpt-3.5-turbo-0613",temperature=0.5):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=messages,
+        functions=functions,
+        temperature = temperature)
+    return response['choices'][0]['message']
+
+
+def smiles_to_3d(smiles, filename):
+    # Convert the SMILES string to a RDKit molecule
+    mol = Chem.MolFromSmiles(smiles)
+
+    # Add hydrogens to the molecule
+    mol = Chem.AddHs(mol)
+
+    # Generate a 3D conformer for the molecule
+    Chem.EmbedMolecule(mol)
     
+    # Convert the RDKit molecule to a Open Babel molecule
+    obmol = openbabel.OBMol()
+    converter = openbabel.OBConversion()
+    converter.SetInAndOutFormats('mol', 'xyz')
+    converter.ReadString(obmol, Chem.MolToMolBlock(mol))
 
-
-
-
+    # Write the Open Babel molecule to a .xyz file
+    with open(filename, 'w') as f:
+        f.write(pybel.Molecule(obmol).write('xyz'))
+    return xyz_reader.read_xyz(filename)
 if __name__ == "__main__":
-    formula = "C6H6"
-    data = get_compound_properties(formula)
+    formula = "C1CCCCC1"
+    data = smiles_to_3d(formula, "test.xyz")
 
