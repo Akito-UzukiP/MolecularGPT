@@ -6,7 +6,8 @@ warnings.filterwarnings("ignore")
 import logging
 logging.disable(logging.CRITICAL)
 import pickle
-
+from utils import cal_mol_props
+import numpy as np
 
 # 用GCPN生成随机符合规则的分子
 def GCPN_simple_molecule_generation(num=1):
@@ -21,7 +22,7 @@ def GCPN_simple_molecule_generation(num=1):
     optimizer = optim.Adam(task.parameters(), lr = 1e-3)
     solver = core.Engine(task, dataset, None, None, optimizer,
                              batch_size=128, log_interval=10)
-    solver.load("./torchdrug/gcpn_zinc250k_5epoch.pkl")
+    solver.load("./torchdrug/gcpn_zinc250k_qed_rl_1epoch.pkl")
     results = task.generate(num_sample=num, max_resample=10)
     return results.to_smiles()
 
@@ -41,4 +42,15 @@ def GCPN_hydrophobic_molecule_generation(num=1):
     solver.load("./torchdrug/gcpn_zinc250k_rl_1epoch.pkl")
     results = task.generate(num_sample=num, max_resample=10)
     return results.to_smiles()
+
+def generate_good_molecule():
+    # 用GCPN_simple_molecule_generation生成20个，取其中QED最好的。
+    moles = GCPN_simple_molecule_generation(50)
+    mole_qed = []
+    for i in moles:
+        mole_qed.append(cal_mol_props(i, verbose=False)[3])
+    #排序，找到top-1的位置
+    mole_qed = np.array(mole_qed)
+    mole_qed = np.argsort(mole_qed)
+    return moles[mole_qed[-1]]
 

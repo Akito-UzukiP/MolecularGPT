@@ -5,8 +5,8 @@ import json
 import os
 import dash_bio as dashbio
 import requests
-from generator import GCPN_simple_molecule_generation,GCPN_hydrophobic_molecule_generation
-from utils import _get_compound_properties, display_mol, smiles_to_3d
+from generator import GCPN_hydrophobic_molecule_generation, generate_good_molecule
+from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
@@ -43,36 +43,18 @@ functions = [
         }
     },
     {   
-        "name": "GCPN_simple_molecule_generation",
-        "description": "用GCPN生成随机符合规则的分子",
+        "name": "generate_good_molecule",
+        "description": "生成一个高QED的分子",
         "parameters": {
             "type": "object",
             "properties": {
-                "num": {
-                    "type": "integer",
-                    "description": "生成分子的数量,默认为1"
-                },
             },
         "required": []
         }
     },
     {
-        "name": "GCPN_hydrophobic_molecule_generation",
-        "description": "用GCPN生成随机符合规则的疏水分子",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "num": {
-                    "type": "integer",
-                    "description": "生成分子的数量,默认为1"
-                },
-            },
-        },
-        "required": []
-    },
-    {
         "name": "_get_compound_properties",
-        "description": "Get compound information from PubChem. Choose which property to get. If you want to get all roperties, use 'ALL'",
+        "description": "Get compound information from PubChem. Choose which property to get. If you get None, it means that this compond is a de novo generated compound.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -88,18 +70,37 @@ functions = [
             },
             "required": ["query", "query_type"]
         }
+    },
+        {
+        "name": "cal_mol_props",
+        "description": "Calculates and returns multiple properties of the molecule given its SMILES string. Uses the RDKit library.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "smi": {
+                    "type": "string",
+                    "description": "The SMILES string of the molecule to calculate properties for. Please ensure that the SMILES string is valid."
+                },
+                "verbose": {
+                    "type": "boolean",
+                    "description": "A flag that, when set to true, makes the function print the calculated properties. Default value is false."
+                }
+            },
+            "required": ["smi"]
+        }
     }
     ]
 
 global_info = {
-     "history": [],  
-     "system_prompt": open("system_prompt.txt","r",encoding='UTF-8').read(),
-     "functions": functions,
-     "input_text": "",
-     "output_text": "",
-     "mol_image": "",
-    "xyz_file": "",
+    "history": [],  
+    "system_prompt": open("system_prompt.txt","r",encoding='UTF-8').read(),
+    "functions": functions,
+    "input_text": "",
+    "output_text": "",
+    "mol_image": "",
+    "xyz_file": {},
     "molecule_info": {},
+    "molecule_evaluate": {},
     "function_response": ""
 }
 
@@ -127,9 +128,10 @@ def chatbot(global_info):
     #如果有函数调用，调用函数，进行第二轮对话
     if response_message.get("function_call"):
         available_functions = {
-            "GCPN_simple_molecule_generation": GCPN_simple_molecule_generation,
+            "generate_good_molecule": generate_good_molecule,
             "GCPN_hydrophobic_molecule_generation": GCPN_hydrophobic_molecule_generation,
-            "_get_compound_properties": _get_compound_properties
+            "_get_compound_properties": _get_compound_properties,
+            "cal_mol_props": cal_mol_props
         }
         function_name = response_message["function_call"]["name"]
         fuction_to_call = available_functions[function_name]
@@ -142,9 +144,11 @@ def chatbot(global_info):
         if function_name == "_get_compound_properties":
             global_info["molecule_info"] = function_response
         #如果function是生成分子，把分子的信息存到global_info
-        if function_name == "GCPN_simple_molecule_generation" or function_name == "GCPN_hydrophobic_molecule_generation":
-            global_info["molecule_info"] = {'SMILES':function_response[0]}
-        
+        if function_name == "generate_good_molecule" or function_name == "GCPN_hydrophobic_molecule_generation":
+            global_info["xyz_file"] = {'SMILES':function_response}
+        if function_name == "cal_mol_props":
+            global_info["molecule_evaluate"] = function_response[-1]
+            function_response = function_response[-1]
         temp_history.append(response_message)  
         temp_history.append(
             {
@@ -279,9 +283,9 @@ def update_chat(n_clicks, input_text, global_store):
 def update_mol_speck(global_store, n_clicks,current_data):
     if n_clicks == 0:
         return current_data
-    print(global_store["molecule_info"])
-    if global_store["molecule_info"] is not None and global_store["molecule_info"].get("SMILES"):
-        return smiles_to_3d(global_store["molecule_info"]["SMILES"])
+    print(global_store["xyz_file"])
+    if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
+        return smiles_to_3d(global_store["xyz_file"]["SMILES"])
     return current_data
 # Run the app
 if __name__ == '__main__':

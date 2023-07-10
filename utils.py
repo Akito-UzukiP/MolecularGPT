@@ -7,8 +7,10 @@ import json
 import os
 import requests
 from dash_bio.utils import xyz_reader
-from generator import GCPN_simple_molecule_generation,GCPN_hydrophobic_molecule_generation
-
+import numpy as np
+from rdkit.Chem import QED, Descriptors, rdMolDescriptors
+from scipy.stats import gaussian_kde
+import rdkit
 def display_mol(smiles):
     #全大写
     smiles = smiles.upper()
@@ -58,7 +60,7 @@ def _get_compound_properties(query, query_type='formula'):
         for prop in data['PC_Compounds'][0]['props']:
             prop_dict[prop['urn']['label']] = prop['value']
         props.append(prop_dict)
-    return props
+    return props[0]
     
 #支持的prop_type:
 # Compound
@@ -76,7 +78,7 @@ def _get_compound_properties(query, query_type='formula'):
 # Topological
 # Weight
 # ["Compound", "Compound Complexity", "Count", "Fingerprint", "IUPAC Name", "InChI", "InChiKey", "Log P", "Mass", "Molecular Formula", "Molecular Weight", "SMILES", "TOPOLOGICAL", "Weight"]
-def get_compound_properties(query, query_type='formula',prop_type=['SMILES']):
+'''def get_compound_properties(query, query_type='formula',prop_type=['SMILES']):
     props = _get_compound_properties(query, query_type)
     if props is None:
         return "No data found."
@@ -88,7 +90,7 @@ def get_compound_properties(query, query_type='formula',prop_type=['SMILES']):
                 if i == j:
                     prop_dicts[i] = mole[i]
         return_props.append(prop_dicts)
-    return return_props
+    return return_props'''
 
 def interact_with_chatgpt(messages, functions, model="gpt-3.5-turbo-0613",temperature=0.5):
     openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -138,14 +140,56 @@ def combine_molecules(smiles1, smiles2, atom_index1, atom_index2):
     # 返回新分子的 SMILES 字符串
     return Chem.MolToSmiles(new_molecule)
 
+def cal_mol_props(smi, verbose=False):
+    try:
+        m = Chem.MolFromSmiles(smi)
+        if not m:
+            return None, None, None, None, None, None, None, None, None
+ 
+        logp = np.round(Descriptors.MolLogP(m), 2)
+        tpsa = np.round(Descriptors.TPSA(m), 1)
+        mw = np.round(Descriptors.MolWt(m), 1)
+        qed = np.round(QED.qed(m), 2)
+        hba = rdMolDescriptors.CalcNumLipinskiHBA(m)
+        hbd = rdMolDescriptors.CalcNumLipinskiHBD(m)
+        rob = rdMolDescriptors.CalcNumRotatableBonds(m)
+        chiral_center = len(Chem.FindMolChiralCenters(m, includeUnassigned=True))
+ 
+        # 计算Bertz CT的数据分布的直方图
+        bertz_ct = Descriptors.BertzCT(m)
+ 
+ 
+        if verbose:
+            print(smi)
+            print('MW ', mw)
+            print('HBD ', hbd)
+            print('HBA ', hba)
+            print('Logp ', logp)
+            print('RotB ', rob)
+            print('QED ', qed)
+            print('chiral_center ', chiral_center)
+            print('TPSA ', tpsa)
+            print('bertz_ct', bertz_ct)
+ 
+        return logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct,"分子的SMILES表示为：{}，其各项性质如下：\n\
+分子量（MW）：{}\n\
+氢键供体数（HBD）：{}\n\
+氢键受体数（HBA）：{}\n\
+LogP值：{}\n\
+可旋转键数（RotB）：{}\n\
+QED分数：{}\n\
+手性中心数：{}\n\
+极性表面积（TPSA）：{}\n\
+BertzCT：{}".format(smi, mw, hbd, hba, logp, rob, qed, chiral_center, tpsa, bertz_ct)
+ 
+    except Exception as e:
+        print(e)
+        return None, None, None, None, None, None, None, None, None, None
+
 
 if __name__ == "__main__":
     # 甲烷和乙烷的 SMILES 字符串
-    smiles1 = 'C'
-    smiles2 = 'CC'
-
-    # 合并甲烷和乙烷，得到丙烷
-    new_smiles = combine_molecules(smiles1, smiles2, 0, 0)
-
-    print(new_smiles)  # 输出：'CCC'
+    SMILES = 'CCCc1ccc(Cc2sc3c(c2C(=O)NC(C)c2ccc(C(=O)O)cc2)CCOC3)cc1'
+    logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct, word = cal_mol_props(SMILES, verbose=False)
+    print(word)
 
