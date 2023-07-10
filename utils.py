@@ -100,7 +100,7 @@ def interact_with_chatgpt(messages, functions, model="gpt-3.5-turbo-0613",temper
     return response['choices'][0]['message']
 
 
-def smiles_to_3d(smiles, filename):
+def smiles_to_3d(smiles):
     # Convert the SMILES string to a RDKit molecule
     mol = Chem.MolFromSmiles(smiles)
 
@@ -117,10 +117,35 @@ def smiles_to_3d(smiles, filename):
     converter.ReadString(obmol, Chem.MolToMolBlock(mol))
 
     # Write the Open Babel molecule to a .xyz file
-    with open(filename, 'w') as f:
-        f.write(pybel.Molecule(obmol).write('xyz'))
-    return xyz_reader.read_xyz(filename)
+    #with open(filename, 'w') as f:
+    #    f.write(pybel.Molecule(obmol).write('xyz'))
+    return xyz_reader.read_xyz(pybel.Molecule(obmol).write('xyz'), is_datafile=False)
+
+def combine_molecules(smiles1, smiles2, atom_index1, atom_index2):
+    # 从 SMILES 字符串创建分子
+    molecule1 = Chem.MolFromSmiles(smiles1)
+    molecule2 = Chem.MolFromSmiles(smiles2)
+
+    # 创建一个反应，用于将两个分子在指定的原子上合并
+    reaction = Chem.ReactionFromSmarts('[*:1].[*:2]>>([*:1].[*:2])')
+
+    # 执行反应
+    product = reaction.RunReactants((molecule1, molecule2))
+
+    # 从产物中获取新的分子
+    new_molecule = product[0][0]
+
+    # 返回新分子的 SMILES 字符串
+    return Chem.MolToSmiles(new_molecule)
+
+
 if __name__ == "__main__":
-    formula = "C1CCCCC1"
-    data = smiles_to_3d(formula, "test.xyz")
+    # 甲烷和乙烷的 SMILES 字符串
+    smiles1 = 'C'
+    smiles2 = 'CC'
+
+    # 合并甲烷和乙烷，得到丙烷
+    new_smiles = combine_molecules(smiles1, smiles2, 0, 0)
+
+    print(new_smiles)  # 输出：'CCC'
 

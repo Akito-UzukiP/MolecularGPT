@@ -187,6 +187,35 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
+            dbc.Card(id='chat-history', children=[], className='mt-4', style={'height': '60vh', 'overflowY': 'scroll'}),
+        ], width=6),
+        dbc.Col([
+            dcc.Loading(
+                id="loading",
+                type="cube",
+                children=dashbio.Speck(
+                    id='mol-Speck',
+                    data = xyz_reader.read_xyz('./assets/test.xyz'),
+                    view={
+                        'resolution': 400,
+                        'ao': 0.1,
+                        'outline': 1,
+                        'atomScale': 0.25,
+                        'relativeAtomScale': 0.33,
+                        'bonds': True,
+                        'zoom' : 0.05
+                    },
+                    style={
+                        'height': '600px',
+                        'width': '400px',
+                        'position': 'relative'
+                    }
+                )
+            )
+        ], width=6)
+    ]),
+    dbc.Row([
+        dbc.Col([
             dbc.FormGroup([
                 dbc.Label('用户输入', className='form-label'),
                 dbc.Textarea(id='input-text', className='form-control', style={'height': '150px'}),
@@ -195,30 +224,9 @@ app.layout = dbc.Container([
             dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
         ], width=6)
     ]),
-    dbc.Row([
-        dbc.Col([
-            dbc.Card(id='chat-history', children=[], className='mt-4'),
-        ], width=12),
-    dcc.Loading(
-                id="loading",
-                type="cube",
-                children=dashbio.Speck(
-                    id='mol-Speck',
-                    view={
-                        'resolution': 400,
-                        'ao': 0.1,
-                        'outline': 1,
-                        'atomScale': 0.25,
-                        'relativeAtomScale': 0.33,
-                        'bonds': True
-                    },
-
-                )
-            )
-    ,
     dcc.Store(id='global-store',data=global_info)
-    ])
 ], fluid=True)
+
 
 
 
@@ -259,18 +267,22 @@ def update_chat(n_clicks, input_text, global_store):
                     ], className='card bg-primary text-white mb-2')
                 ], className='mb-4')
             )
-        print(chat_output)
+        #print(chat_output)
         return chat_output, datas
     return [], global_store
 @app.callback(
     Output('mol-Speck', 'data'),
-    Input('global-store', 'data')  # The data of mol-Speck is updated when the global store is updated
+    Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
+    State('submit-button', 'n_clicks'),
+    State('mol-Speck', 'data')
 )
-def update_mol_speck(global_store):
+def update_mol_speck(global_store, n_clicks,current_data):
+    if n_clicks == 0:
+        return current_data
     print(global_store["molecule_info"])
     if global_store["molecule_info"] is not None and global_store["molecule_info"].get("SMILES"):
-        smiles_to_3d(global_store["molecule_info"]["SMILES"], "./assets/test.xyz")
-    return xyz_reader.read_xyz("./assets/test.xyz")
+        return smiles_to_3d(global_store["molecule_info"]["SMILES"])
+    return current_data
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
