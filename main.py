@@ -5,8 +5,7 @@ import json
 import os
 import dash_bio as dashbio
 import requests
-from generator import GCPN_hydrophobic_molecule_generation, generate_good_molecule
-from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props
+from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props, pregenerated_molecule
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
@@ -28,23 +27,9 @@ requests.Session().proxies = proxies
 
 # Keep the functions as they are...
 functions = [
-    {
-        "name": "display_mol",
-        "description": "显示分子结构，输入分子正确的SMILES字符串，通过RDKit库绘制分子结构2D图像,直接显示在外面，不会返回给AI",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "smiles": {
-                    "type": "string",
-                    "description": "The SMILES string of the molecule to display. Please ensure that the SMILES string is valid."
-                }
-            },
-        "required": ["smiles"]
-        }
-    },
     {   
-        "name": "generate_good_molecule",
-        "description": "生成一个高QED的分子",
+        "name": "pregenerated_molecule",
+        "description": "生成一个高QED的分子,如果用户要求生成分子则调用这个函数",
         "parameters": {
             "type": "object",
             "properties": {
@@ -128,8 +113,7 @@ def chatbot(global_info):
     #如果有函数调用，调用函数，进行第二轮对话
     if response_message.get("function_call"):
         available_functions = {
-            "generate_good_molecule": generate_good_molecule,
-            "GCPN_hydrophobic_molecule_generation": GCPN_hydrophobic_molecule_generation,
+            "pregenerated_molecule": pregenerated_molecule,
             "_get_compound_properties": _get_compound_properties,
             "cal_mol_props": cal_mol_props
         }
@@ -144,7 +128,7 @@ def chatbot(global_info):
         if function_name == "_get_compound_properties":
             global_info["molecule_info"] = function_response
         #如果function是生成分子，把分子的信息存到global_info
-        if function_name == "generate_good_molecule" or function_name == "GCPN_hydrophobic_molecule_generation":
+        if function_name == "pregenerated_molecule":
             global_info["xyz_file"] = {'SMILES':function_response}
         if function_name == "cal_mol_props":
             global_info["molecule_evaluate"] = function_response[-1]
@@ -217,8 +201,8 @@ app.layout = dbc.Container([
                         'zoom' : 0.05
                     },
                     style={
-                        'height': '800px',
-                        'width': '800px',
+                        'height': '50vh',
+                        'width': '50vh',
                         'border': 'solid grey 3px'
                     }
                 )
@@ -233,7 +217,8 @@ app.layout = dbc.Container([
                             {'label': 'Style 3', 'value': 'style3'},
                             # Add more styles here
                         ],
-                        value='style1'  # Default value
+                        value='style1',  # Default value
+                        style={'width': '50vh', 'margin-top': '10px'}
                     ),
                     dbc.FormGroup([
                         dbc.Label("SMILES", className="form-label", style={'margin-top': '10px'}),
@@ -243,7 +228,7 @@ app.layout = dbc.Container([
                             style={'height': '5vh'},
                             readOnly=False,
                         )
-                    ]),
+                    ], style={'width': '50vh', 'margin-top': '10px'}),
 
                     dbc.FormGroup([
                         dbc.Label("properties", className="form-label", style={'margin-top': '10px'}),
@@ -253,7 +238,7 @@ app.layout = dbc.Container([
                             style={'height': '150px'},
                             readOnly=True,
                         )
-                    ])
+                    ],style={'width': '50vh', 'margin-top': '10px'})
                 ], width=6)
             ]),
 

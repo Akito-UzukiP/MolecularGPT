@@ -2,6 +2,7 @@ import openai
 import rdkit.Chem.Draw
 import rdkit.Chem.AllChem as Chem
 from openbabel import openbabel, pybel
+import random
 import json
 import os
 import requests
@@ -187,10 +188,16 @@ BertzCT：{}".format(smi, mw, hbd, hba, logp, rob, qed, chiral_center, tpsa, ber
         print(e)
         return None, None, None, None, None, None, None, None, None, None
 
+def pregenerated_molecule():
+    with open('./assets/good_molecule.txt', 'r') as f:
+        lines = f.readlines()
+    #随机选取一个分子
+    line = random.choice(lines)
+    return line
 
 if __name__ == "__main__":
     # 甲烷和乙烷的 SMILES 字符串
-    SMILES = 'CCCc1ccc(Cc2sc3c(c2C(=O)NC(C)c2ccc(C(=O)O)cc2)CCOC3)cc1'
-    logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct, word = cal_mol_props(SMILES, verbose=False)
-    print(word)
+    #SMILES = 'CCCc1ccc(Cc2sc3c(c2C(=O)NC(C)c2ccc(C(=O)O)cc2)CCOC3)cc1'
+    #logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct, word = cal_mol_props(SMILES, verbose=False)
+    print(pregenerated_molecule())
 

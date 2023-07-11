@@ -1,10 +1,7 @@
-torch == 1.13.0
 openai
 rdkit
-torchdrug
 gradio
-urllib3==1.25
-torchdrug
+urllib3==1.24
 dash_bio
 dash
 dash_bootstrap_components==0.9
