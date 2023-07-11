@@ -4,11 +4,13 @@
 TODO
 ![Alt text](image.png)
 ### 2. 安装
-- 克隆本repo后直接使用pip安装即可
+- 克隆本repo后直接使用pip安装即可, openbabel需要使用conda安装。注意有些package需要MSVC编译器，如果没有的话会报错。
 ```bash
 git clone https://github.com/Akito-UzukiP/MolecularGPT.git
 cd MolecularGPT
 pip install -r requirements.txt
+
+conda install -c conda-forge openbabel pymol-open-source
 ```
 - 需要设置openai的api key环境变量，或者直接在代码里设置，以下代码是通过PowerShell命令行设置API_KEY，将sk-******更换成你的API KEY
 ```PowerShell

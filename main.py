@@ -83,7 +83,7 @@ global_info = {
     "input_text": "",
     "output_text": "",
     "mol_image": "",
-    "xyz_file": {},
+    "displaying_molecule": "",
     "molecule_info": {},
     "molecule_evaluate": "",
     "function_response": ""
@@ -96,9 +96,10 @@ def chatbot(global_info):
     history = global_info["history"]
     functions = global_info["functions"]
     system_prompt = global_info["system_prompt"]
+    SMILES = global_info["displaying_molecule"]
     function_response = None
     #组建对话历史
-    history.append({"role": "user", "content": input_text})
+    history.append({"role": "user", "content": input_text+"现在显示的分子的SMILES:"+ SMILES})
     temp_history = [{"role": "system", "content": system_prompt}]
     for i in history:
         temp_history.append(i)
@@ -129,7 +130,7 @@ def chatbot(global_info):
             global_info["molecule_info"] = function_response
         #如果function是生成分子，把分子的信息存到global_info
         if function_name == "pregenerated_molecule":
-            global_info["xyz_file"] = {'SMILES':function_response}
+            global_info["displaying_molecule"] = function_response
         if function_name == "cal_mol_props":
             global_info["molecule_evaluate"] = function_response[-1]
             function_response = function_response[-1]
@@ -171,8 +172,8 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.H2('MolecularGPT Chatbot', className='text-center text-primary mb-4'),
-        ], width=12)
-    ]),
+        ], width=12, className='mx-auto')
+    ], className='mx-auto'),
     dbc.Row([
         dbc.Col([
             dashbio.Jsme(id = 'jsme',width='100%',height='28vh',smiles='', style={'width': '70vh', 'height': '30vh', 'border': 'solid grey 3px'}),
@@ -212,12 +213,13 @@ app.layout = dbc.Container([
                     dcc.Dropdown(
                         id='speck-style-dropdown',
                         options=[
-                            {'label': 'Style 1', 'value': 'style1'},
-                            {'label': 'Style 2', 'value': 'style2'},
-                            {'label': 'Style 3', 'value': 'style3'},
+                            {'label': 'default', 'value': 'default'},
+                            {'label': 'stick-ball', 'value': 'stick-ball'},
+                            {'label': 'toon', 'value': 'toon'},
+                            {'label': 'licorice', 'value': 'licorice'},
                             # Add more styles here
                         ],
-                        value='style1',  # Default value
+                        value='default',  # Default value
                         style={'width': '50vh', 'margin-top': '10px'}
                     ),
                     dbc.FormGroup([
@@ -240,22 +242,24 @@ app.layout = dbc.Container([
                         )
                     ],style={'width': '50vh', 'margin-top': '10px'})
                 ], width=6)
-            ]),
+            ], className='mx-auto'),
 
         ], width=6)
-    ]),
-    dcc.Store(id='global-store',data=global_info)
-], fluid=True)
+    ], className='mx-auto'),
+    dcc.Store(id='global-store',data=global_info),
+    dcc.Store(id='temp-store',data=global_info)
+], fluid=True, className='mx-auto')
 
 
 
 
 
 
-# Define the callback
+# chatGPT输入（文本框输入，聊天栏输出，global_store存储）
 @app.callback(
     Output('chat-history', 'children'),
-    Output('global-store', 'data'),
+    Output('smiles-textbox', 'value'),
+    Output('temp-store', 'data'),
     Input('submit-button', 'n_clicks'),
     State('input-text', 'value'),
     State('global-store', 'data')
@@ -263,6 +267,7 @@ app.layout = dbc.Container([
 def update_chat(n_clicks, input_text, global_store):
     if n_clicks > 0:
         global_store["input_text"] = input_text
+        #更新global_store
         datas = chatbot(global_store)
         chat_history = datas['history']
         chat_output = []
@@ -288,17 +293,19 @@ def update_chat(n_clicks, input_text, global_store):
                 ], className='mb-4')
             )
         #print(chat_output)
-        return chat_output, datas
-    return [], global_store
+        return chat_output, datas['displaying_molecule'], datas
+    return [],"",  global_store
 
+
+#textbox传输到mol-Speck
 
 @app.callback(
     Output('mol-Speck', 'data'),
-    Input('smiles-textbox', 'value'), 
-    State('submit-button', 'n_clicks'),
+    Input('global-store', 'data'), 
     State('mol-Speck', 'data')
 )
-def update_mol_speck(smiles, n_clicks,current_data):
+def update_mol_speck(global_store,current_data):
+    smiles = global_store["displaying_molecule"]
     print(smiles)
     if smiles is not None and smiles != "":
         #确认SMILES是否合法
@@ -307,57 +314,35 @@ def update_mol_speck(smiles, n_clicks,current_data):
             return temp
     return current_data
 
+
+#全局信息-->jsme/textbox显示
+
 @app.callback(
     Output('jsme', 'smiles'),
-    Output('smiles-textbox', 'value'),
-    Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
+    Input('global-store', 'data')  # The data of mol-Speck is updated when the global store is updated
 )
 def update_jsme(global_store):
-    if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
-        return global_store["xyz_file"]["SMILES"], global_store["xyz_file"]["SMILES"]
-    return "", ""
+    return global_store["displaying_molecule"]
 
-
+#style变更
 
 @app.callback(
-    Output('mol-Speck', 'view'),
+    Output('mol-Speck', 'presetView'),
     Input('speck-style-dropdown', 'value'),
 )
 def update_speck_style(style_value):
     # Define different styles
     styles = {
-        'style1': {
-            'resolution': 800,
-            'ao': 0.1,
-            'outline': 1,
-            'atomScale': 0.25,
-            'relativeAtomScale': 0.33,
-            'bonds': True,
-            'zoom' : 0.05
-        },
-        'style2': {
-            'resolution': 800,
-            'ao': 0.1,
-            'outline': 0,
-            'atomScale': 0.1,
-            'relativeAtomScale': 0.7,
-            'bonds': True,
-            'zoom' : 0.05,
-            'adomShade' : 1
-        },
-        'style3': {
-            'resolution': 800,
-            'ao': 0.1,
-            'outline': 0,
-            'atomScale': 0.8,
-            'relativeAtomScale': 0.9,
-            'bonds': False,
-            'zoom' : 0.05
-        }
+        'default': 'default',
+        'stick-ball': 'stick-ball',
+        'toon': 'toon',
+        'licorice': 'licorice',
         # Add more styles here
     }
 
     return styles[style_value]
+
+#显示分子属性
 
 @app.callback(
     Output('molecule-properties', 'value'),
@@ -366,6 +351,15 @@ def update_speck_style(style_value):
 def update_molecule_properties(global_store):
     return global_store["molecule_evaluate"]
 
+#从smiles-textbox更新global-store
+@app.callback(
+    Output('global-store', 'data'),
+    Input('smiles-textbox', 'value'),
+    State('temp-store', 'data')
+)
+def update_global_store_from_smiles_textbox(smiles, global_store):
+    global_store["displaying_molecule"] = smiles
+    return global_store
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)
