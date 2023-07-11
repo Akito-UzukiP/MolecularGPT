@@ -45,7 +45,7 @@ def GCPN_hydrophobic_molecule_generation(num=1):
 
 def generate_good_molecule():
     # 用GCPN_simple_molecule_generation生成20个，取其中QED最好的。
-    moles = GCPN_simple_molecule_generation(50)
+    moles = GCPN_simple_molecule_generation(100)
     mole_qed = []
     for i in moles:
         mole_qed.append(cal_mol_props(i, verbose=False)[3])

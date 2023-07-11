@@ -1,4 +1,4 @@
-torch == 1.8
+torch == 1.13.0
 openai
 rdkit
 torchdrug
@@ -7,5 +7,4 @@ urllib3==1.25
 torchdrug
 dash_bio
 dash
-dash_bootstrap_components=0.9
-openbabel
+dash_bootstrap_components==0.9

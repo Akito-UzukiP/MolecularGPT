@@ -191,14 +191,14 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            dashbio.Jsme(id = 'jsme', style={'width': '70vh', 'height': '30vh', 'border': 'solid grey 3px'}),
+            dashbio.Jsme(id = 'jsme',width='100%',height='28vh',smiles='', style={'width': '70vh', 'height': '30vh', 'border': 'solid grey 3px'}),
             dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '40vh', 'width':'70vh', 'border': 'solid grey 3px', 'overflowY': 'scroll'}),
             dbc.FormGroup([
                 dbc.Label('用户输入', className='form-label'),
                 dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'70vh', 'height': '5vh'}),
                 dbc.FormText('请输入你的查询.', color='secondary'),
                 ]),
-            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2')
         ], width=6),
         dbc.Col([
             dcc.Loading(
@@ -235,6 +235,16 @@ app.layout = dbc.Container([
                         ],
                         value='style1'  # Default value
                     ),
+                    dbc.FormGroup([
+                        dbc.Label("SMILES", className="form-label", style={'margin-top': '10px'}),
+                        dbc.Textarea(
+                            id="smiles-textbox",
+                            value="",
+                            style={'height': '5vh'},
+                            readOnly=False,
+                        )
+                    ]),
+
                     dbc.FormGroup([
                         dbc.Label("properties", className="form-label", style={'margin-top': '10px'}),
                         dbc.Textarea(
@@ -285,11 +295,11 @@ def update_chat(n_clicks, input_text, global_store):
                     dbc.CardBody([
                         html.Img(src='./assets/jingtai.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
                         html.P("   "+user_input[i], className='card-text'),
-                    ], className='card bg-light text-dark mb-2',style={'display': 'flex', 'flex-direction':'row',  'align-items': 'center'}),
+                    ], className='card bg-light text-dark mb-2',style={'display': 'flex', 'flex-direction':'row', 'width':'100%', 'align-items': 'center'}),
                     dbc.CardBody([
                         html.Img(src='./assets/chatgpt.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
                         html.P("   "+bot_output[i], className='card-text'),
-                    ], className='card bg-primary text-white mb-2',style={'display': 'flex','flex-direction':'row',  'align-items': 'center'})
+                    ], className='card bg-primary text-white mb-2',style={'display': 'flex','flex-direction':'row', 'width':'100%', 'align-items': 'center'})
                 ], className='mb-4')
             )
         #print(chat_output)
@@ -299,17 +309,30 @@ def update_chat(n_clicks, input_text, global_store):
 
 @app.callback(
     Output('mol-Speck', 'data'),
-    Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
+    Input('smiles-textbox', 'value'), 
     State('submit-button', 'n_clicks'),
     State('mol-Speck', 'data')
 )
-def update_mol_speck(global_store, n_clicks,current_data):
-    if n_clicks == 0:
-        return current_data
-    print(global_store["xyz_file"])
-    if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
-        return smiles_to_3d(global_store["xyz_file"]["SMILES"])
+def update_mol_speck(smiles, n_clicks,current_data):
+    print(smiles)
+    if smiles is not None and smiles != "":
+        #确认SMILES是否合法
+        temp = smiles_to_3d(smiles)
+        if temp is not None:
+            return temp
     return current_data
+
+@app.callback(
+    Output('jsme', 'smiles'),
+    Output('smiles-textbox', 'value'),
+    Input('global-store', 'data'),  # The data of mol-Speck is updated when the global store is updated
+)
+def update_jsme(global_store):
+    if global_store["xyz_file"] is not None and global_store["xyz_file"].get("SMILES"):
+        return global_store["xyz_file"]["SMILES"], global_store["xyz_file"]["SMILES"]
+    return "", ""
+
+
 
 @app.callback(
     Output('mol-Speck', 'view'),

@@ -103,25 +103,27 @@ def interact_with_chatgpt(messages, functions, model="gpt-3.5-turbo-0613",temper
 
 def smiles_to_3d(smiles):
     # Convert the SMILES string to a RDKit molecule
-    mol = Chem.MolFromSmiles(smiles)
+    try:
+        mol = Chem.MolFromSmiles(smiles)
 
-    # Add hydrogens to the molecule
-    mol = Chem.AddHs(mol)
+        # Add hydrogens to the molecule
+        mol = Chem.AddHs(mol)
 
-    # Generate a 3D conformer for the molecule
-    Chem.EmbedMolecule(mol)
-    
-    # Convert the RDKit molecule to a Open Babel molecule
-    obmol = openbabel.OBMol()
-    converter = openbabel.OBConversion()
-    converter.SetInAndOutFormats('mol', 'xyz')
-    converter.ReadString(obmol, Chem.MolToMolBlock(mol))
+        # Generate a 3D conformer for the molecule
+        Chem.EmbedMolecule(mol)
+        
+        # Convert the RDKit molecule to a Open Babel molecule
+        obmol = openbabel.OBMol()
+        converter = openbabel.OBConversion()
+        converter.SetInAndOutFormats('mol', 'xyz')
+        converter.ReadString(obmol, Chem.MolToMolBlock(mol))
 
-    # Write the Open Babel molecule to a .xyz file
-    #with open(filename, 'w') as f:
-    #    f.write(pybel.Molecule(obmol).write('xyz'))
-    return xyz_reader.read_xyz(pybel.Molecule(obmol).write('xyz'), is_datafile=False)
-
+        # Write the Open Babel molecule to a .xyz file
+        #with open(filename, 'w') as f:
+        #    f.write(pybel.Molecule(obmol).write('xyz'))
+        return xyz_reader.read_xyz(pybel.Molecule(obmol).write('xyz'), is_datafile=False)
+    except:
+        return None
 def combine_molecules(smiles1, smiles2, atom_index1, atom_index2):
     # 从 SMILES 字符串创建分子
     molecule1 = Chem.MolFromSmiles(smiles1)
