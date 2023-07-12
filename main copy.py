@@ -5,7 +5,7 @@ import json
 import os
 import dash_bio as dashbio
 import requests
-from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props, pregenerated_molecule, smiles2pdb, docking_score
+from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props, pregenerated_molecule, smiles2pdb
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
@@ -74,17 +74,7 @@ functions = [
             },
             "required": ["smi"]
         }
-    },
-    {   
-        "name": "docking_score",
-        "description": "使用深度学习计算药物分子和蛋白质靶点的结合评分。",
-        "parameters": {
-            "type": "object",
-            "properties": {
-            },
-        "required": []
-        }
-    },
+    }
     ]
 
 global_info = {
@@ -127,8 +117,7 @@ def chatbot(global_info):
         available_functions = {
             "pregenerated_molecule": pregenerated_molecule,
             "_get_compound_properties": _get_compound_properties,
-            "cal_mol_props": cal_mol_props,
-            "docking_score": docking_score
+            "cal_mol_props": cal_mol_props
         }
         function_name = response_message["function_call"]["name"]
         fuction_to_call = available_functions[function_name]
@@ -200,18 +189,27 @@ app.layout = dbc.Container([
         ], width=4),
         #第二列（Speck显示、分子属性显示
         dbc.Col([
-            dashbio.Speck(
-                id='mol-Speck',
-                data = xyz_reader.read_xyz('./assets/test.xyz'),
-                view={
-                    'resolution': 500
-                },
-                presetView='licorice',
-                style={
-                    'height': '500px',
-                    'width': '500px',
-                    'border': 'solid grey 3px'
-                },
+            dcc.Loading(
+                id="loading",
+                type="cube",
+                children=dashbio.Speck(
+                    id='mol-Speck',
+                    data = xyz_reader.read_xyz('./assets/test.xyz'),
+                    view={
+                        'resolution': 400,
+                        'ao': 0.1,
+                        'outline': 1,
+                        'atomScale': 0.25,
+                        'relativeAtomScale': 0.33,
+                        'bonds': True,
+                        'zoom' : 0.05
+                    },
+                    style={
+                        'height': '50vh',
+                        'width': '50vh',
+                        'border': 'solid grey 3px'
+                    }
+                )
             ),
             dbc.Row([
                 dbc.Col([
@@ -250,22 +248,21 @@ app.layout = dbc.Container([
         ], width=4),
         #第三列
         dbc.Col([
-            html.H2('靶点蛋白质', className='text-center text-primary mb-4',style={'border': 'solid grey 3px'}),
+            html.H2('显示', className='text-center text-primary mb-4',style={'border': 'solid grey 3px'}),
             dashbio.NglMoleculeViewer(id="default-ngl-molecule",
                                       data=[
-                                            ngl_parser.get_data(data_path='D:/pyprojs/pdbs/', pdb_id='7tjz', color='red',reset_view=True, local=True)],
+                                            ngl_parser.get_data(data_path='D:/pyprojs/pdbs/', pdb_id='2rka', color='red',reset_view=True, local=True)],
                                       #data = [ngl_parser.get_data(data_path='./assets/', pdb_id='ligand', color='red',reset_view=True, local=True)],
                                       molStyles={
-                                        "representations": ["cartoon"],
+                                        "representations": ["hyperball"],
                                         "chosenAtomsColor": "blue",
                                         "chosenAtomsRadius": 1,
                                         "molSpacingXaxis": 100},
                                       stageParameters = {
                                         "quality": 'low',
-                                        "backgroundColor": 'white',
+                                        "backgroundColor": 'black',
                                         "cameraType": 'Perspective'
                                     }),
-            html.Img(src='./assets/00002.png'),
         ], width=4, className='mx-auto')
     ], className='mx-auto'),
 
@@ -338,7 +335,7 @@ def update_mol_speck(global_store,current_data):
     return current_data
 
 #textbox传输到ngl
-'''@app.callback(
+@app.callback(
     Output('default-ngl-molecule', 'data'),
     Input('global-store', 'data'), 
     State('default-ngl-molecule', 'data')
@@ -350,7 +347,7 @@ def update_mol_ngl(global_store,current_data):
         temp = smiles2pdb(smiles)
         current_data[0]['config']['input'] = temp
 
-    return current_data'''
+    return current_data
 
 
 #全局信息-->jsme/textbox显示
@@ -372,7 +369,7 @@ def update_speck_style(style_value):
     # Define different styles
     styles = {
         'default': 'default',
-        'stickball': 'stickball',
+        'stick-ball': 'stick-ball',
         'toon': 'toon',
         'licorice': 'licorice',
         # Add more styles here

@@ -1,7 +1,7 @@
 openai
 rdkit
-gradio
 urllib3==1.24
 dash_bio
 dash
 dash_bootstrap_components==0.9
+pybel

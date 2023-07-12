@@ -8,7 +8,7 @@ logging.disable(logging.CRITICAL)
 import pickle
 from utils import cal_mol_props
 import numpy as np
-
+from rdkit import Chem
 # 用GCPN生成随机符合规则的分子
 def GCPN_simple_molecule_generation(num=1):
     with open("./torchdrug/zinc250k.pkl", "rb") as fin:
@@ -52,5 +52,5 @@ def generate_good_molecule():
     #排序，找到top-1的位置
     mole_qed = np.array(mole_qed)
     mole_qed = np.argsort(mole_qed)
-    return moles[mole_qed[-1]]
+    return Chem.MolToSmiles(Chem.MolFromSmiles(moles[mole_qed[-1]]))
 

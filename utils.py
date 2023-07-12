@@ -193,11 +193,42 @@ def pregenerated_molecule():
         lines = f.readlines()
     #随机选取一个分子
     line = random.choice(lines)
-    return line
+    return Chem.MolToSmiles(Chem.MolFromSmiles(line))
+
+def smiles2pdb(smiles):
+    # 创建一个转化器
+    obConversion = openbabel.OBConversion()
+    obConversion.SetInAndOutFormats("smi", "pdb")
+
+    # SMILES字符串
+    smiles_str = smiles  # 例如，环己烷的SMILES字符串
+
+    # 创建一个分子对象
+    mol = openbabel.OBMol()
+
+    # 从SMILES字符串转化到分子对象
+    obConversion.ReadString(mol, smiles_str)
+
+    # 创建一个生成3D坐标的构建器
+    builder = openbabel.OBBuilder()
+
+    # 使用构建器生成3D坐标
+    builder.Build(mol)
+
+    # 从分子对象转化到PDB字符串
+    pdb_str = obConversion.WriteString(mol)
+    print(pdb_str)
+    with open('D:/pyprojs/pdbs/ligand.pdb', 'w') as f:
+        f.write(pdb_str)
+    return pdb_str
+
+# 随机生成对接分数
+def docking_score():
+    return random.uniform(-10, 10)
 
 if __name__ == "__main__":
     # 甲烷和乙烷的 SMILES 字符串
     #SMILES = 'CCCc1ccc(Cc2sc3c(c2C(=O)NC(C)c2ccc(C(=O)O)cc2)CCOC3)cc1'
     #logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct, word = cal_mol_props(SMILES, verbose=False)
-    print(pregenerated_molecule())
+    print(smiles2pdb("C"))
 
