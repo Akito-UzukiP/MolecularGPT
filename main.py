@@ -5,12 +5,14 @@ import json
 import os
 import dash_bio as dashbio
 import requests
-from utils import _get_compound_properties, display_mol, smiles_to_3d, cal_mol_props, pregenerated_molecule, smiles2pdb, docking_score
+from utils import _get_compound_properties, smiles_to_3d, cal_mol_props, pregenerated_molecule, docking_score, get_knowledge
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.express as px
+from dash.exceptions import PreventUpdate
 import json
+from dash import callback_context as ctx
 from dash_bio.utils import xyz_reader
 import dash_bio.utils.ngl_parser as ngl_parser
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -30,7 +32,7 @@ requests.Session().proxies = proxies
 functions = [
     {   
         "name": "pregenerated_molecule",
-        "description": "生成一个高QED的分子,一次性生成1000个分子,从中选出药物性质评分最高的分子,如果用户要求生成分子则调用这个函数。请注意，这个分子会自动被其它组件调用生成图片，你不需要生成图片。",
+        "description": "使用深度学习模型生成一个高QED、符合靶点要求的分子,一次性生成1000个分子,从中选出药物性质评分最高的分子,如果用户要求生成分子则调用这个函数。请注意，这个分子会自动被其它组件调用生成图片，你不需要生成图片。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -77,7 +79,7 @@ functions = [
     },
     {   
         "name": "docking_score",
-        "description": "使用深度学习计算药物分子和蛋白质靶点的结合评分。",
+        "description": "使用深度学习计算药物分子和蛋白质靶点的结合评分。这个分数是通过AutoDock软件将分子和靶点进行对接计算得到的。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -85,6 +87,21 @@ functions = [
         "required": []
         }
     },
+    {
+        "name": "get_knowledge",
+        "description": "查询一些制药相关的知识，以及和本公司相关的信息。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "The key of the knowledge to query.",
+                    "enum": ['靶点', '靶点配对', '分子设计', '分子合成', '临床试验', '靶点口袋']
+                }
+            },
+            "required": ["key"]
+        }
+    }
     ]
 
 global_info = {
@@ -97,7 +114,8 @@ global_info = {
     "displaying_molecule": "",
     "molecule_info": {},
     "molecule_evaluate": "",
-    "function_response": ""
+    "function_response": "",
+
 }
 
 
@@ -128,7 +146,8 @@ def chatbot(global_info):
             "pregenerated_molecule": pregenerated_molecule,
             "_get_compound_properties": _get_compound_properties,
             "cal_mol_props": cal_mol_props,
-            "docking_score": docking_score
+            "docking_score": docking_score,
+            "get_knowledge": get_knowledge,
         }
         function_name = response_message["function_call"]["name"]
         fuction_to_call = available_functions[function_name]
@@ -189,59 +208,71 @@ app.layout = dbc.Container([
     dbc.Row([
         #第一列（chatGPT交流、分子编辑
         dbc.Col([
-            dashbio.Jsme(id = 'jsme',width='100%',height='28vh',smiles='', style={'width': '50vh', 'height': '30vh', 'border': 'solid grey 3px'}),
-            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '40vh', 'width':'50vh', 'border': 'solid grey 3px', 'overflowY': 'scroll'}),
+            dashbio.Jsme(id = 'jsme',width='100%',height='30vh',smiles='', style={'width': '50vh', 'height': '30vh', 'border': 'solid grey 3px'}),
+            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '40vh', 'width':'50vh', 'border': 'solid grey 3px', 'overflowY': 'scroll','back-ground-color':'grey'}),
             dbc.FormGroup([
-                dbc.Label('用户输入', className='form-label'),
+                dbc.Label('用户输入', className='form-label' , style={'color': 'white'}),
                 dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'50vh', 'height': '5vh'}),
-                dbc.FormText('请输入你的查询.', color='secondary'),
+                dbc.FormText('请输入你的查询.', color='white'),
                 ]),
-            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2')
+            dbc.Row([
+            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('生成分子', id='generation-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('查询分子', id='query-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('评价分子', id='eval-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('靶点结合评分', id='dock-eval-button', n_clicks=0, color='primary', className='mt-2'),
+        ]),
         ], width=4),
         #第二列（Speck显示、分子属性显示
         dbc.Col([
-            dashbio.Speck(
-                id='mol-Speck',
-                data = xyz_reader.read_xyz('./assets/test.xyz'),
-                view={
-                    'resolution': 500
-                },
-                presetView='licorice',
+            dbc.Row([
+                dashbio.Speck(
+                    id='mol-Speck',
+                    data=xyz_reader.read_xyz('./assets/test.xyz'),
+                    view={
+                        'resolution': 500
+                    },
+                    presetView='licorice',
+                    style={
+                        'height': '500px',
+                        'width': '500px'
+                    },
+                )],
                 style={
-                    'height': '500px',
-                    'width': '500px',
-                    'border': 'solid grey 3px'
-                },
-            ),
+                    'background-image': './assets/PRDM9.png',
+                    'background-size': 'cover',
+                }),
             dbc.Row([
                 dbc.Col([
+                    dbc.Label("分子表示方式", className="form-label", style={'margin-top': '10px', 'color': 'white'}),
                     dcc.Dropdown(
                         id='speck-style-dropdown',
                         options=[
-                            {'label': 'default', 'value': 'default'},
-                            {'label': 'stick-ball', 'value': 'stickball'},
-                            {'label': 'toon', 'value': 'toon'},
-                            {'label': 'licorice', 'value': 'licorice'},
+                            {'label': '球模型', 'value': 'default'},
+                            {'label': '球棍模型', 'value': 'stickball'},
+                            {'label': '卡通效果', 'value': 'toon'},
+                            {'label': '棍棒模型', 'value': 'licorice'},
                             # Add more styles here
                         ],
-                        value='licorice',  # Default value
+                        value='default',  # Default value
                         style={'width': '50vh', 'margin-top': '10px'}
                     ),
                     dbc.FormGroup([
-                        dbc.Label("SMILES", className="form-label", style={'margin-top': '10px'}),
+                        dbc.Label("分子结构表示法(SMILES)", className="form-label", style={'margin-top': '10px', 'color': 'white'}),
                         dbc.Textarea(
                             id="smiles-textbox",
                             value="",
-                            style={'height': '5vh'},
-                            readOnly=False,
+                            style={'height': '5vh', 'color': 'blue'},
+                            readOnly=False
                         )
                     ], style={'width': '50vh', 'margin-top': '10px'}),
 
                     dbc.FormGroup([
-                        dbc.Label("properties", className="form-label", style={'margin-top': '10px'}),
+                        dbc.Label("分子评分", className="form-label", style={'margin-top': '10px', 'color': 'white'}),
                         dcc.Markdown(
                             id="molecule-properties",
-                            children=""
+                            children="",
+                            style={'color': 'white'}
                         )
                     ],style={'width': '50vh', 'margin-top': '10px'})
                 ], width=4)
@@ -250,9 +281,10 @@ app.layout = dbc.Container([
         ], width=4),
         #第三列
         dbc.Col([
-            html.H2('靶点蛋白质', className='text-center text-primary mb-4',style={'border': 'solid grey 3px'}),
-            html.Img(src='./assets/PRDM9.png',style={'width': '500px', 'height': '500px'}),
-        ], width=4, className='mx-auto')
+            html.H2('靶点蛋白质SH3b', className='text-center text-primary mb-4',style={'border': 'solid grey 3px', 'background-color': 'white'}),
+            html.Img(id = 'target_png', src='./assets/target.png',style={'width': '500px', 'height': '500px'}),
+            dbc.Button('显示真实药物分子', id='show-answer', n_clicks=0, color='primary', className='mt-2')
+        ], width=4, className='mx-auto'),
     ], className='mx-auto'),
 
     dcc.Store(id='global-store',data=global_info),
@@ -270,11 +302,32 @@ app.layout = dbc.Container([
     Output('smiles-textbox', 'value'),
     Output('temp-store', 'data'),
     Input('submit-button', 'n_clicks'),
+    Input('query-button', 'n_clicks'),
+    Input('generation-button', 'n_clicks'),
+    Input('eval-button', 'n_clicks'),
+    Input('dock-eval-button', 'n_clicks'),
     State('input-text', 'value'),
     State('global-store', 'data')
 )
-def update_chat(n_clicks, input_text, global_store):
-    if n_clicks > 0:
+def update_chat(n_clicks,n_click_query,n_click_generation,n_click_eval,n_click_dock_eval, input_text, global_store):
+    if not ctx.triggered:
+        raise PreventUpdate
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # 根据不同的按钮设置不同的 input_text
+    print(button_id)
+    if button_id == 'query-button':
+        input_text = "请帮我用PubChem查询一下现在这个分子的信息"
+    elif button_id == 'generation-button':
+        input_text = "请用深度学习模型生成一个高评分、符合靶点要求的分子"
+    elif button_id == 'eval-button':
+        input_text = "请评价一下这个分子"
+    elif button_id == 'dock-eval-button':
+        input_text = "请评价一下目前这个分子的靶点结合评分如何"
+
+    if n_clicks > 0 or n_click_query > 0 or n_click_generation > 0 or n_click_eval > 0 or n_click_dock_eval > 0:
+        
         global_store["input_text"] = input_text
         #更新global_store
         datas = chatbot(global_store)
@@ -293,14 +346,15 @@ def update_chat(n_clicks, input_text, global_store):
                 dbc.Card([
                     dbc.CardBody([
                         html.Img(src='./assets/jingtai.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
-                        dcc.Markdown("   "+user_input[i], className='card-text'),
-                    ], className='card bg-light text-dark mb-2',style={'display': 'flex', 'flex-direction':'row', 'width':'100%', 'align-items': 'center'}),
+                        dcc.Markdown(user_input[i], className='card-text',style={'color': 'grey'}),
+                    ], className='card bg-light text-dark mb-2', style={'display': 'flex', 'flex-direction':'row', 'width':'100%',  'align-items': 'center'}),
                     dbc.CardBody([
                         html.Img(src='./assets/chatgpt.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
-                        dcc.Markdown("   "+bot_output[i], className='card-text'),
-                    ], className='card bg-primary text-white mb-2',style={'display': 'flex','flex-direction':'row', 'width':'100%', 'align-items': 'center'})
+                        dcc.Markdown(bot_output[i], className='card-text',style={'color': 'white'}),
+                    ], className='card bg-primary text-white mb-2', style={'display': 'flex','flex-direction':'row', 'width':'100%',  'align-items': 'center'})
                 ], className='mb-4')
             )
+
         #print(chat_output)
         return chat_output, datas['displaying_molecule'], datas
     return [],"",  global_store
@@ -385,6 +439,16 @@ def update_global_store_from_smiles_textbox(smiles, global_store):
     global_store["displaying_molecule"] = smiles
     global_store['molecule_evaluate'] = cal_mol_props(smiles)[-1]
     return global_store
+
+@app.callback(
+    Output('target_png', 'src'),
+    Input('show-answer', 'n_clicks')
+)
+def update_target_png(n_clicks):
+    if n_clicks % 2 == 0:
+        return './assets/target.png'
+    else:
+        return './assets/target+drug.png'
 # Run the app
 if __name__ == '__main__':
     app.run_server(debug=True)

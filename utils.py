@@ -172,9 +172,8 @@ def cal_mol_props(smi, verbose=False):
             print('chiral_center ', chiral_center)
             print('TPSA ', tpsa)
             print('bertz_ct', bertz_ct)
- 
-        return logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct,"分子的SMILES表示为：{}，其各项性质如下：\n\
-分子量（MW）：{}\n\
+        #保留两位小数
+        return logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct,"分子量（MW）：{}\n\
 氢键供体数（HBD）：{}\n\
 氢键受体数（HBA）：{}\n\
 LogP值：{}\n\
@@ -182,7 +181,7 @@ LogP值：{}\n\
 QED分数：{}\n\
 手性中心数：{}\n\
 极性表面积（TPSA）：{}\n\
-BertzCT：{}".format(smi, mw, hbd, hba, logp, rob, qed, chiral_center, tpsa, bertz_ct)
+BertzCT：{:.2f}".format(mw, hbd, hba, logp, rob, qed, chiral_center, tpsa, bertz_ct)
  
     except Exception as e:
         print(e)
@@ -224,7 +223,18 @@ def smiles2pdb(smiles):
 
 # 随机生成对接分数
 def docking_score():
-    return random.uniform(-10, 10)
+    return random.uniform(-10, -8)
+
+# 获取知识
+
+k = json.load(open('./assets/knowledge.json','r',encoding='utf-8'))
+def get_knowledge(key = '靶点'):
+    #['靶点', '靶点配对', '分子设计', '分子合成', '临床试验', '靶点口袋']
+    if key in k.keys():
+        return k[key]
+    else:
+        return ''
+
 
 if __name__ == "__main__":
     # 甲烷和乙烷的 SMILES 字符串
