@@ -19,14 +19,9 @@ openai_api_key = os.environ.get("OPENAI_API_KEY")
 openai.api_key = openai_api_key
 system_prompt = open("system_prompt.txt","r",encoding='UTF-8').read()
 main_history = []
-proxies = {
-        "http":  "socks5h://localhost:11796",
-        "https": "socks5h://localhost:11796",
-}
-requests.Session().proxies = proxies
+welcome_word = open("./assets/welcome_word.txt","r",encoding='UTF-8').read()
 
-
-
+init_smiles = 'CC(C1=CC2=C(C=C1)C3=CC(=C(C=C3OC2=O)OCC4=CC=C(C=C4)OC)OC)O'
 
 # Keep the functions as they are...
 functions = [
@@ -42,7 +37,7 @@ functions = [
     },
     {
         "name": "_get_compound_properties",
-        "description": "通过PubChem查询分子的属性。如果通过SMILES查询只有分子式、SMILES和InChI表示，则你需要跟用户说明这个分子并没有收录，可能是全新的分子。",
+        "description": "通过PubChem查询分子的属性。如果使用分子式查询，你必须用英语分子式子，,不是分子名字！用中文查询是非法的！如果通过SMILES查询只有分子式、SMILES和InChI表示，则你需要跟用户说明这个分子并没有收录，可能是全新的分子。请注意：使用SMILES式进行的查询比使用formula进行的精准的多得多得多！！如果用户已经提供了SMILES，请一定使用SMILES进行查询！",
         "parameters": {
             "type": "object",
             "properties": {
@@ -52,7 +47,7 @@ functions = [
                 },
                 "query_type": {
                     "type": "string",
-                    "enum": [ "smiles"],
+                    "enum": ['formula', "smiles"],
                     "description": "Choose to search with SMILES or formula."
                 }
             },
@@ -111,9 +106,9 @@ global_info = {
     "input_text": "",
     "output_text": "",
     "mol_image": "",
-    "displaying_molecule": "",
+    "displaying_molecule": init_smiles,
     "molecule_info": {},
-    "molecule_evaluate": "",
+    "molecule_evaluate": "分子量（MW）：406.4 氢键供体数（HBD）：1 氢键受体数（HBA）：6 LogP值：4.6 可旋转键数（RotB）：6 QED分数：0.37 手性中心数：1 极性表面积（TPSA）：78.1 BertzCT：1254.91",
     "function_response": "",
 
 }
@@ -129,12 +124,12 @@ def chatbot(global_info):
     function_response = None
     #组建对话历史
     history.append({"role": "user", "content": input_text})
-    temp_history = [{"role": "system", "content": system_prompt + "现在显示的分子的信息:" + str(global_info["molecule_info"])}]
+    temp_history = [{"role": "system", "content": system_prompt + "现在显示的分子的信息:" + str(global_info["molecule_info"]) + "现在显示的分子的SMILES:" + str(global_info['displaying_molecule'])}]
     for i in history:
         temp_history.append(i)
     #获取第一轮回复
     completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-0613",
+        model="gpt-3.5-turbo-16k",
         messages=temp_history,
         functions=functions,
         temperature = 1)
@@ -152,7 +147,8 @@ def chatbot(global_info):
         function_name = response_message["function_call"]["name"]
         fuction_to_call = available_functions[function_name]
         function_args = json.loads(response_message["function_call"]["arguments"])
-        #print(function_args)
+        print(function_name)
+        print(function_args)
         function_response = fuction_to_call(
             **function_args
         )
@@ -174,7 +170,7 @@ def chatbot(global_info):
             }
         )
         second_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-0613",
+            model="gpt-3.5-turbo-16k",
             messages=temp_history,
             temperature = 1)
         second_response_message = second_response['choices'][0]['message']['content']
@@ -195,9 +191,8 @@ def chatbot(global_info):
 
 
 
-
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],title='分子可视化平台')
+#CORS(app.server)  # 允许所有源的请求
 # Define the layout
 app.layout = dbc.Container([
     dbc.Row([
@@ -208,15 +203,22 @@ app.layout = dbc.Container([
     dbc.Row([
         #第一列（chatGPT交流、分子编辑
         dbc.Col([
-            dashbio.Jsme(id = 'jsme',width='100%',height='30vh',smiles='', style={'width': '50vh', 'height': '30vh', 'border': 'solid grey 3px'}),
-            dbc.Card(id='chat-history', children=[], className='mt-4', style={'align-items': 'center', 'height': '40vh', 'width':'50vh', 'border': 'solid grey 3px', 'overflowY': 'scroll','back-ground-color':'grey'}),
+            html.P('当你在JSME上画好分子之后，你就可以右键->Copy as SMILES -> 复制分子信息 -> 粘贴到画面中间的分子结构表示法(SMILES)上，然后你就可以看到分子的模型啦！', style={'color': 'green' , 'font-size': '10px'}),
+            dashbio.Jsme(id = 'jsme',width='100%',height='30vh',options="NOexportInChI NOexportInChIauxInfo NOexportInChIkey NOsearchInChIkey NOexportSVG paste newLook NOshowDragAndDrop SymbolInDepictMode", smiles=init_smiles, style={'width': '50vh', 'height': '30vh', 'border': 'solid grey 3px'}),
+            dbc.Card(id='chat-history', children=[
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Img(src='./assets/chatgpt.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
+                        dcc.Markdown(welcome_word, className='card-text',style={'color': 'white'}),
+                    ], className='card bg-primary text-white mb-2', style={'display': 'flex','flex-direction':'row', 'width':'100%',  'align-items': 'center'})
+                ], className='mb-4')
+            ], className='mt-4', style={ 'align-items': 'center', 'height': '40vh', 'width':'50vh', 'border': 'solid grey 3px', 'overflowY': 'scroll','back-ground-color':'grey'}),
             dbc.FormGroup([
                 dbc.Label('用户输入', className='form-label' , style={'color': 'white'}),
-                dbc.Textarea(id='input-text', className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'50vh', 'height': '5vh'}),
-                dbc.FormText('请输入你的查询.', color='white'),
+                dbc.Textarea(id='input-text', value="你可以为我做什么？", className='form-control', style={'align-items': 'center', 'border': 'solid grey 3px','width':'50vh', 'height': '5vh'})
                 ]),
             dbc.Row([
-            dbc.Button('提交', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
+            dbc.Button('发送内容', id='submit-button', n_clicks=0, color='primary', className='mt-2'),
             dbc.Button('生成分子', id='generation-button', n_clicks=0, color='primary', className='mt-2'),
             dbc.Button('查询分子', id='query-button', n_clicks=0, color='primary', className='mt-2'),
             dbc.Button('评价分子', id='eval-button', n_clicks=0, color='primary', className='mt-2'),
@@ -228,11 +230,16 @@ app.layout = dbc.Container([
             dbc.Row([
                 dashbio.Speck(
                     id='mol-Speck',
-                    data=xyz_reader.read_xyz('./assets/test.xyz'),
+                    data=smiles_to_3d(init_smiles),
                     view={
-                        'resolution': 500
+                        'resolution': 500,
+                        'ao': 0.1,
+                        'outline': 1,
+                        'atomScale': 0.25,
+                        'relativeAtomScale': 0.33,
+                        'bonds': True,
+                        'zoom' : 0.05
                     },
-                    presetView='licorice',
                     style={
                         'height': '500px',
                         'width': '500px'
@@ -254,14 +261,14 @@ app.layout = dbc.Container([
                             {'label': '棍棒模型', 'value': 'licorice'},
                             # Add more styles here
                         ],
-                        value='default',  # Default value
+                        value='toon',  # Default value
                         style={'width': '50vh', 'margin-top': '10px'}
                     ),
                     dbc.FormGroup([
                         dbc.Label("分子结构表示法(SMILES)", className="form-label", style={'margin-top': '10px', 'color': 'white'}),
                         dbc.Textarea(
                             id="smiles-textbox",
-                            value="",
+                            value=init_smiles,
                             style={'height': '5vh', 'color': 'blue'},
                             readOnly=False
                         )
@@ -271,7 +278,7 @@ app.layout = dbc.Container([
                         dbc.Label("分子评分", className="form-label", style={'margin-top': '10px', 'color': 'white'}),
                         dcc.Markdown(
                             id="molecule-properties",
-                            children="",
+                            children="分子量（MW）：406.4 氢键供体数（HBD）：1 氢键受体数（HBA）：6 LogP值：4.6 可旋转键数（RotB）：6 QED分数：0.37 手性中心数：1 极性表面积（TPSA）：78.1 BertzCT：1254.91",
                             style={'color': 'white'}
                         )
                     ],style={'width': '50vh', 'margin-top': '10px'})
@@ -347,11 +354,11 @@ def update_chat(n_clicks,n_click_query,n_click_generation,n_click_eval,n_click_d
                     dbc.CardBody([
                         html.Img(src='./assets/jingtai.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
                         dcc.Markdown(user_input[i], className='card-text',style={'color': 'grey'}),
-                    ], className='card bg-light text-dark mb-2', style={'display': 'flex', 'flex-direction':'row', 'width':'100%',  'align-items': 'center'}),
+                    ], className='card bg-light text-dark mb-2', style={'display': 'flex', 'flex-direction':'row', 'width':'95%',  'align-items': 'center', 'word-wrap': 'break-word', 'overflow-wrap': 'break-word'}),
                     dbc.CardBody([
                         html.Img(src='./assets/chatgpt.png', className='icon-class'),  # You should replace /path/to/icon.png with the actual path to your icon image
                         dcc.Markdown(bot_output[i], className='card-text',style={'color': 'white'}),
-                    ], className='card bg-primary text-white mb-2', style={'display': 'flex','flex-direction':'row', 'width':'100%',  'align-items': 'center'})
+                    ], className='card bg-primary text-white mb-2', style={'display': 'flex','flex-direction':'row', 'width':'95%',  'align-items': 'center', 'word-wrap': 'break-word', 'overflow-wrap': 'break-word'})
                 ], className='mb-4')
             )
 
@@ -369,11 +376,11 @@ def update_chat(n_clicks,n_click_query,n_click_generation,n_click_eval,n_click_d
 )
 def update_mol_speck(global_store,current_data):
     smiles = global_store["displaying_molecule"]
-    print(smiles)
     if smiles is not None and smiles != "":
         #确认SMILES是否合法
         temp = smiles_to_3d(smiles)
         if temp is not None:
+            print(smiles)
             return temp
     return current_data
 
@@ -451,4 +458,5 @@ def update_target_png(n_clicks):
         return './assets/target+drug.png'
 # Run the app
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    #serve(app.server,port=8050)
+    app.run_server(debug=True, host='0.0.0.0', port=8050)

@@ -104,27 +104,26 @@ def interact_with_chatgpt(messages, functions, model="gpt-3.5-turbo-0613",temper
 
 def smiles_to_3d(smiles):
     # Convert the SMILES string to a RDKit molecule
-    try:
+        print(smiles)
         mol = Chem.MolFromSmiles(smiles)
-
+        print(mol)
         # Add hydrogens to the molecule
         mol = Chem.AddHs(mol)
-
+        print(mol)
         # Generate a 3D conformer for the molecule
         Chem.EmbedMolecule(mol)
-        
+        print(mol)       
         # Convert the RDKit molecule to a Open Babel molecule
         obmol = openbabel.OBMol()
+        print(obmol)
         converter = openbabel.OBConversion()
         converter.SetInAndOutFormats('mol', 'xyz')
         converter.ReadString(obmol, Chem.MolToMolBlock(mol))
-
+        print(pybel.Molecule(obmol).write('xyz'))
         # Write the Open Babel molecule to a .xyz file
         #with open(filename, 'w') as f:
         #    f.write(pybel.Molecule(obmol).write('xyz'))
         return xyz_reader.read_xyz(pybel.Molecule(obmol).write('xyz'), is_datafile=False)
-    except:
-        return None
 def combine_molecules(smiles1, smiles2, atom_index1, atom_index2):
     # 从 SMILES 字符串创建分子
     molecule1 = Chem.MolFromSmiles(smiles1)
@@ -240,5 +239,5 @@ if __name__ == "__main__":
     # 甲烷和乙烷的 SMILES 字符串
     #SMILES = 'CCCc1ccc(Cc2sc3c(c2C(=O)NC(C)c2ccc(C(=O)O)cc2)CCOC3)cc1'
     #logp, tpsa, mw, qed, hba, hbd, rob, chiral_center, bertz_ct, word = cal_mol_props(SMILES, verbose=False)
-    print(smiles2pdb("C"))
+    print(smiles_to_3d("c1ccccc1"))
 
